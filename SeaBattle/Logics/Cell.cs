@@ -1,13 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NavalBattle.Logics
 {
-
-    enum CellState
+    public enum CellState
     {
         Empty,
         Ship,
@@ -16,7 +11,7 @@ namespace NavalBattle.Logics
         Sunk
     }
 
-    internal class Cell
+    public class Cell
     {
         public int X { get; }
         public int Y { get; }
@@ -28,6 +23,5 @@ namespace NavalBattle.Logics
             Y = y;
             CurrentState = initialState;
         }
-
     }
 }
