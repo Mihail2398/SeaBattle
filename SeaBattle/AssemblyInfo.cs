@@ -1,11 +1,11 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using NavalBattle.Logics;
 using NavalBattle.Network;
 
@@ -15,7 +15,7 @@ namespace NavalBattle
     {
         private NetworkManager _networkManager;
         private Board _myBoard;
-        private Board _enemyBoard; 
+        private Board _enemyBoard;
         private bool _isMyTurn;
         private bool _isHost;
         private int _myScore = 0;
@@ -24,8 +24,13 @@ namespace NavalBattle
         public MainWindow()
         {
             InitializeComponent();
+            _myBoard = new Board();
+            _enemyBoard = new Board();
+            _myBoard.AutoPlaceShips();
+            _enemyBoard.InitializeBoard();
+            RenderBoard(MyGrid, _myBoard, isEnemy: false);
+            RenderBoard(EnemyGrid, _enemyBoard, isEnemy: true);
         }
-
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
         {
@@ -43,149 +48,139 @@ namespace NavalBattle
             {
                 if (_isHost)
                 {
-                    _isMyTurn = true; 
-                    await _networkManager.StartServer(port);
+                    _isMyTurn = true;
+                    await _networkManager.StartServer(port); 
                 }
                 else
                 {
                     _isMyTurn = false;
-                    await _networkManager.ConnectToServer(TxtIp.Text, port);
+                    string ip = TxtIp.Text.Trim();
+
+                    if (string.IsNullOrEmpty(ip))
+                    {
+                        MessageBox.Show("Введите IP-адрес.");
+                        ResetConnectButton();
+                        return;
+                    }
+
+                    
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        var connectTask = _networkManager.ConnectToServer(ip, port);
+                        var delayTask = Task.Delay(-1, cts.Token);
+
+                        if (await Task.WhenAny(connectTask, delayTask) == connectTask)
+                        {
+                            cts.Cancel();
+                            await connectTask;
+                        }
+                        else
+                        {
+                            throw new TimeoutException("Время ожидания истекло. Проверьте IP.");
+                        }
+                    }
                 }
 
                 ConnectionMenu.Visibility = Visibility.Collapsed;
                 GameScreen.Visibility = Visibility.Visible;
-                StartGame();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка сети: {ex.Message}");
-                BtnStart.IsEnabled = true;
-                BtnStart.Content = "Кнопка начать";
+                ResetConnectButton();
             }
         }
 
-
-        private void StartGame()
+        private void ResetConnectButton()
         {
-            _myBoard = new Board(10, 10);
-            _enemyBoard = new Board(10, 10); 
-
-            _myBoard.AutoPlaceShips(); 
-
-            RenderBoard(MyGrid, _myBoard, isEnemy: false);
-            RenderBoard(EnemyGrid, _enemyBoard, isEnemy: true);
-
-            UpdateTurnUI();
+            BtnStart.IsEnabled = true;
+            BtnStart.Content = "Кнопка начать";
         }
 
         private void RenderBoard(UniformGrid grid, Board board, bool isEnemy)
         {
             grid.Children.Clear();
-
             for (int r = 0; r < board.Row; r++)
             {
                 for (int c = 0; c < board.Column; c++)
                 {
-                    Cell cellInfo = board.GetCell(c, r);
-
-                    Border cellUI = new Border
+                    Cell cell = board.GetCell(c, r);
+                    Border cellVisual = new Border
                     {
-                        BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3AA1C2")),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(58, 161, 194)),
                         BorderThickness = new Thickness(0.5),
-                        Background = GetCellColor(cellInfo.CurrentState, isEnemy)
+                        Tag = cell
+                    };
+
+                    cellVisual.Background = cell.CurrentState switch
+                    {
+                        CellState.Empty => Brushes.Transparent,
+                        CellState.Ship => isEnemy ? Brushes.Transparent : Brushes.LightGray,
+                        CellState.Miss => Brushes.DarkCyan,
+                        CellState.Hit => Brushes.IndianRed,
+                        CellState.Sunk => Brushes.Red,
+                        _ => Brushes.Transparent
                     };
 
                     if (isEnemy)
                     {
-                        cellUI.Cursor = Cursors.Hand;
-                        cellUI.Tag = new Point(c, r); 
-                        cellUI.MouseLeftButtonDown += EnemyCell_Click;
+                        cellVisual.Cursor = Cursors.Hand;
+                        cellVisual.MouseLeftButtonDown += EnemyCell_Click;
                     }
 
-                    grid.Children.Add(cellUI);
+                    grid.Children.Add(cellVisual);
                 }
             }
         }
 
-        private Brush GetCellColor(CellState state, bool hideShips)
-        {
-            switch (state)
-            {
-                case CellState.Ship:
-                    return hideShips ? Brushes.Transparent : Brushes.LightGray; 
-                case CellState.Miss:
-                    return Brushes.DarkCyan; 
-                case CellState.Hit:
-                case CellState.Sunk:
-                    return Brushes.IndianRed; 
-                default:
-                    return Brushes.Transparent;
-            }
-        }
-
-        private void UpdateTurnUI()
-        {
-            if (_isMyTurn)
-            {
-                TurnIndicatorPanel.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D7151"));
-                TxtTurn.Text = "ТВОЙ ХОД";
-            }
-            else
-            {
-                TurnIndicatorPanel.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A44040"));
-                TxtTurn.Text = "ХОД ПРОТИВНИКА";
-            }
-            TxtMyScore.Text = _myScore.ToString();
-            TxtEnemyScore.Text = _enemyScore.ToString();
-        }
-
-
         private async void EnemyCell_Click(object sender, MouseButtonEventArgs e)
         {
-            if (!_isMyTurn) return; 
+            if (!_isMyTurn) return;
 
-            Border clickedCell = sender as Border;
-            Point coords = (Point)clickedCell.Tag;
-            int x = (int)coords.X;
-            int y = (int)coords.Y;
+            var border = sender as Border;
+            var cell = border?.Tag as Cell;
+            if (cell == null) return;
 
-            if (_enemyBoard.GetCell(x, y).CurrentState != CellState.Empty) return;
+            if (cell.CurrentState != CellState.Empty) return;
 
             _isMyTurn = false;
-            UpdateTurnUI();
 
-            GamePacket attackPacket = new GamePacket { X = x, Y = y, Result = CellState.Empty };
+            GamePacket attackPacket = new GamePacket { X = cell.X, Y = cell.Y, Result = CellState.Empty };
             await _networkManager.SendPacket(attackPacket);
         }
-
 
         private void NetworkManager_OnPacketReceived(GamePacket packet)
         {
             Dispatcher.Invoke(async () =>
             {
+                if (packet.IsGameOver)
+                {
+                    MessageBox.Show("Вы победили! Все корабли врага уничтожены.");
+                    Close();
+                    return;
+                }
+
                 if (packet.Result == CellState.Empty)
                 {
                     CellState shotResult = _myBoard.Shoot(packet.X, packet.Y);
                     RenderBoard(MyGrid, _myBoard, isEnemy: false);
 
                     if (shotResult == CellState.Hit || shotResult == CellState.Sunk)
-                        _enemyScore++; 
+                        _enemyScore++;
 
-                    if (_myBoard.AllShipsDestroyed)
+                    bool lost = _myBoard.AllShipsDestroyed;
+
+                    GamePacket resultPacket = new GamePacket { X = packet.X, Y = packet.Y, Result = shotResult, IsGameOver = lost };
+                    await _networkManager.SendPacket(resultPacket);
+
+                    if (lost)
                     {
                         MessageBox.Show("Вы проиграли! Все ваши корабли уничтожены.");
                         Close();
                         return;
                     }
 
-                    GamePacket resultPacket = new GamePacket { X = packet.X, Y = packet.Y, Result = shotResult };
-                    await _networkManager.SendPacket(resultPacket);
-
-                    if (shotResult == CellState.Miss)
-                    {
-                        _isMyTurn = true;
-                    }
-                    UpdateTurnUI();
+                    if (shotResult == CellState.Miss) _isMyTurn = true;
                 }
                 else
                 {
@@ -195,15 +190,16 @@ namespace NavalBattle
                     if (packet.Result == CellState.Hit || packet.Result == CellState.Sunk)
                     {
                         _myScore++;
-                        _isMyTurn = true; 
+                        _isMyTurn = true;
                     }
                     else if (packet.Result == CellState.Miss)
                     {
-                        _isMyTurn = false; 
+                        _isMyTurn = false;
                     }
-
-                    UpdateTurnUI();
                 }
+
+                TxtMyScore.Text = _myScore.ToString();
+                TxtEnemyScore.Text = _enemyScore.ToString();
             });
         }
 
