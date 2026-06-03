@@ -10,6 +10,7 @@ namespace NavalBattle.Network
     public class NetworkManager
     {
         private TcpClient _client;
+        private TcpListener _listener;
         private NetworkStream _stream;
         private bool _isConnected;
         public event Action<GamePacket> OnPacketReceived;
@@ -17,10 +18,18 @@ namespace NavalBattle.Network
 
         public async Task StartServer(int port)
         {
-            var listener = new TcpListener(System.Net.IPAddress.Any, port);
-            listener.Start();
-            _client = await listener.AcceptTcpClientAsync();
-            StartProcessing();
+            try
+            {
+                _listener = new TcpListener(System.Net.IPAddress.Any, port);
+                _listener.Start();
+                _client = await _listener.AcceptTcpClientAsync();
+                StartProcessing();
+            }
+            catch
+            {
+                _listener?.Stop();
+                throw;
+            }
         }
 
         public async Task ConnectToServer(string ip, int port)
@@ -65,12 +74,20 @@ namespace NavalBattle.Network
             finally { HandleDisconnect(); }
         }
 
+        public void Stop()
+        {
+            _isConnected = false;
+            _client?.Close();
+            _listener?.Stop();
+        }
+
         private void HandleDisconnect()
         {
             if (!_isConnected) return;
             _isConnected = false;
             OnConnectionLost?.Invoke();
             _client?.Close();
+            _listener?.Stop();
         }
     }
 }

@@ -4,7 +4,6 @@
         Title="Морской Бой по сети" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen" Background="#0C2538">
     <Grid>
-        <!-- ЭКРАН 1: МЕНЮ ПОДКЛЮЧЕНИЯ -->
         <Border x:Name="ConnectionMenu" Background="#F0F4F8" Width="300" Height="350" CornerRadius="10" VerticalAlignment="Center" HorizontalAlignment="Center" Panel.ZIndex="10">
             <Border.Effect>
                 <DropShadowEffect Color="Black" BlurRadius="15" Opacity="0.3"/>
@@ -14,7 +13,6 @@
 
                 <TextBlock Text="Player 1 (Host/Client)" Background="#D0D9E0" TextAlignment="Center" Padding="5" Foreground="#333" Margin="0,0,0,10"/>
 
-                <!-- Поле IP -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="30"/>
@@ -24,7 +22,6 @@
                     <TextBox x:Name="TxtIp" Grid.Column="1" Text="127.0.0.1" Padding="5" FontSize="14"/>
                 </Grid>
 
-                <!-- Поле Порт -->
                 <Grid Margin="0,0,0,20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="30"/>
@@ -34,7 +31,6 @@
                     <TextBox x:Name="TxtPort" Grid.Column="1" Text="8888" Padding="5" FontSize="14"/>
                 </Grid>
 
-                <!-- Переключатели -->
                 <RadioButton x:Name="RbHost" Content="Хост (Создать игру)" FontSize="14" Margin="0,0,0,10" IsChecked="True"/>
                 <RadioButton x:Name="RbClient" Content="Клиент (Подключиться)" FontSize="14" Margin="0,0,0,20"/>
 
@@ -48,7 +44,6 @@
             </StackPanel>
         </Border>
 
-        <!-- ЭКРАН 2: ИГРОВОЕ ПОЛЕ -->
         <Grid x:Name="GameScreen" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -56,11 +51,9 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.Background>
-                <!-- Здесь в будущем можно задать ImageBrush с текстурой воды -->
                 <SolidColorBrush Color="#164D68"/>
             </Grid.Background>
 
-            <!-- ТВОЕ ПОЛЕ -->
             <Grid Grid.Column="0" Margin="20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -69,12 +62,10 @@
                 <TextBlock Text="ТВОЕ ПОЛЕ" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
 
                 <Border Grid.Row="1" BorderBrush="#3AA1C2" BorderThickness="2" Background="#0A324A" Opacity="0.9">
-                    <!-- UniformGrid для твоих клеток -->
                     <UniformGrid x:Name="MyGrid" Rows="10" Columns="10" />
                 </Border>
             </Grid>
 
-            <!-- ЦЕНТРАЛЬНАЯ ПАНЕЛЬ СТАТИСТИКИ -->
             <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border x:Name="TurnIndicatorPanel" Background="#1D7151" Padding="10" CornerRadius="5" Margin="0,0,0,10">
                     <TextBlock x:Name="TxtTurn" Text="ОЖИДАНИЕ..." Foreground="White" FontWeight="Bold" TextAlignment="Center"/>
@@ -89,7 +80,6 @@
                 <TextBlock x:Name="TxtEnemyScore" Text="0" FontSize="24" FontWeight="Bold" Foreground="White" TextAlignment="Center"/>
             </StackPanel>
 
-            <!-- ПОЛЕ ПРОТИВНИКА -->
             <Grid Grid.Column="2" Margin="20">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -98,7 +88,6 @@
                 <TextBlock Text="ПОЛЕ ПРОТИВНИКА" Foreground="White" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,10"/>
 
                 <Border Grid.Row="1" BorderBrush="#3AA1C2" BorderThickness="2" Background="#0A324A" Opacity="0.9">
-                    <!-- UniformGrid для клеток врага -->
                     <UniformGrid x:Name="EnemyGrid" Rows="10" Columns="10" />
                 </Border>
             </Grid>
